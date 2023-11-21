@@ -1,0 +1,430 @@
+---
+title: "Gráficos"
+author: "Gustavo Pesini"
+date: "2023-10-12"
+output: html_document
+---
+
+              ### Introdução ao ggplot - Parte teórica ###
+
+
+"O gráfico simples trouxe mais informações à mente do analista de dados 
+do que qualquer outro dispositivo" - John Tukey
+
+Antes de começar o gráfico...
+
+
+ Os dados devem estar em "formato tidy data": 
+   > Variáveis estão dispostas em colunas.
+   > Observações estão dispostas em linhas.
+   > Os valores atribuídos às variáveis em cada observação formam a tabela.
+
+
+ Isso Facilita o trabalho e o raciocínio com:
+  > Operações 
+  > Manipulação 
+  > Visualização
+ 
+Entenda melhor em: http://tidyr.tidyverse.org/articles/tidy-data.html
+
+
+
+#### Gramática de gráficos em ggplot: ####
+
+#######
+ggplot(data = <DATA>) + 
+  <GEOM_FUNCTION>(
+     mapping = aes(<MAPPINGS>),
+     stat = <STAT>, 
+     position = <POSITION>
+  ) +
+  <COORDINATE_FUNCTION> +
+  <FACET_FUNCTION>
+#######
+
+# Pode-se descrever qualquer gráfico com a combinação desses parâmetros 
+
+
+# Discussão de cada tópico:
+1: Data
+2: Aesthetic
+3: Geometric
+4: Statistics
+5: Coordinates
+6: Scales
+7: Facets
+8. Labels 
+9. Themes 
+
+
+## 
+1. Data (dados)
+
+ggplot(data = ...) # dados em formato tidy
+
+
+##
+2. Aesthetic (Mmapeamento dos dados para elementos visuais)
++ aes(x =..., y =...)
+
+# é possível agrupar os dados com o aes():
++ aes(x =..., y =..., group =..., color =..., etc)
+
+
+##
+3. Geometric (geometria - tipo de gráfico)
++ geom_*(mapping, data, stat, position) #  
+
+# * representa o tipo de geometria (ponto, linha, barras )
+
+
+##
+4. Statistics (estatística)
+geralmente para sumarizar dados (média, soma, etc)
+
++ geom_*(stat = ...) 
+
+# ex: + geom_line(stat = 'identity') 
+
+
+##
+5. Coordinates (define como os dados serão mapeados para o plano/área do gráfico 
+(Cartesiano, Polar, etc))
+
++ coord_cartesian()
+
+# eixos inverso: + coord_flip()
+
+
+##
+6: Scales (controlam o mapeamento - tamanho, cor, posição ou forma) 
+
+scale_*() 
+
+# * representa o tipo de escala (cor, preenchimento, tamanho)
+
+# modelos - tipos
+<https://ggplot2.tidyverse.org/reference/#scales>
+
+##
+7: Facets (partição de gráficos) 
+ 
+ + facet_grid(...~...) # produz gráfico vazio
+ ou
+ + facet_wrap(...~...) # não produz gráfico vazio 
+
+
+##
+8. labels (modificar eixos, legendas...)
+ 
+ + labs(title, x = ..., y = ...,)
+
+ ou
+ 
+ + xlab()
+ + ylab()
+ 
+ 
+##
+ 9. Themes (controle dos elementos - que não são dados - do gráfico)
+ 
+ + theme() # ajuste da exibição de um tema existente 
+
+ #Alguns exemplos
+ 
+  + theme_gray() 
+  + theme_bw() 
+  + theme_linedraw() 
+  + theme_light() 
+  + theme_dark() 
+  + theme_minimal() 
+  + theme_classic() 
+  + theme_void()
+ 
+ 
+ 
+                  ### Introdução ao ggplot - Parte prática ###
+
+# Pacotes 
+```{r}
+library(tidyverse)   # Carrega o ggplot2
+library(agridat)     # Pacote que contém alguns dados que serão utilizados 
+library(ggsci)       # Pacote para paleta de cores - adicionais
+library(gridExtra)   # Pacote para composição de gráficos
+library(gganimate)   # extensão do ggplot para animações 
+library(frontier)    # Pacote que contém alguns dados que serão utilizados 
+library(ggstatsplot) # Extensão do ggplot
+library(soiltestcorr)# Pacote que contém alguns dados que serão utilizados
+```
+
+
+                        ###### Gráfico de pontos ######
+
+# Dados 
+```{r}
+dados <- agridat::bachmaier.nitrogen # visualizar os dados
+summary(dados) # Visualizar o resumo dos dados 
+```
+
+# Gráfico - Plano de fundo com mapeamento
+```{r}
+ggplot(data = dados, 
+       mapping =  aes(x = nitro, y = yield))
+```
+
+# Adicionando geometria
+```{r}
+ggplot(data = dados, 
+       mapping =  aes(x = nitro, y = yield))+
+  geom_point(stat = 'identity', position = "identity") # ver cada argumento em help
+
+# Resumindo o código 
+
+ggplot(dados, aes(nitro, yield))+
+  geom_point()
+
+# Escrito de outra forma
+ggplot(dados)+
+  geom_point(aes(nitro, yield)) # mapeamento dentro da geometria 
+```
+
+# Agrupando os dados e adicionando cor 
+```{r}
+ggplot(dados)+
+  geom_point(aes(nitro, yield, color = zone)) 
+# Usamos o color =, mas pode ser agrupado por group =, fill =, etc
+
+
+ggplot(dados)+
+  geom_point(aes(nitro, yield, color = zone),
+             color='black', fill='red', shape=21, size = 4) 
+
+# Quando o argumento (ex: color) é especificado dentro do aes, a estética é mapeada para o valor de uma variável nos dados. Fora do aes, a estética é apenas definida com um valor específico.
+```
+
+# Adicionando outra camada além dos pontos 
+```{r}
+ggplot(dados, aes(nitro, yield, color = zone))+
+  geom_point()+
+geom_smooth(method = "lm") 
+# visualizar isso: method = 'lm', level = 0.99
+```
+
+# Mudança na ordem das camadas - divisão por grupo
+```{r}
+ggplot(dados, aes(nitro, yield, color = zone))+
+  geom_smooth(level = 0.99)+
+  geom_point(color = 'black')
+```
+
+# Usando o pacote dplyr para manipular os dados 
+```{r}
+# isso pode ser feito dentro do código do ggplot, mas vamos fazer do jeito 'clássico'
+dados <- dados |> 
+  mutate(zone_pt = recode(zone, # Adiciona uma nova coluna om base na zone
+    "high" = "Alta",            # Adiciona Alta para aquilo que tem nome high
+    "low" = "Baixa"             # Adiciona Baixa para aquilo que tem nome low
+  ))
+```
+
+# Adicionando outras camadas e comandos  
+```{r}
+p1 <- ggplot(dados, aes(nitro, yield, color = zone_pt))+      # dados com grupamento
+  geom_point(size = 4)+                                 # pontos com tamanho 4
+  geom_smooth(method = 'lm', formula = y~poly(x,2),     # linha de tendência com modelo 
+              color = 'black', se = T, level = 0.99)+   # cor e intervalo de confiança 
+  facet_grid(~ zone_pt)+                                # divisão em facetas
+  theme_bw()+                                          # tipo do tema 
+  theme(axis.text = element_text(size=13,  color = "black"),  # mudança de parâmetros estéticos que não são dados 
+        axis.title = element_text(size=13,  color = "black"),
+        strip.text = element_text(size = 13),
+        legend.position = "none",
+        panel.grid = element_blank())+
+  scale_color_manual(values = c("Alta" = 'darkgray', "Baixa" = 'darkgray'))+     # adicionando cor manualmente 
+  xlab(expression("Dose de nitrogênio (kg ha"^"-1"~")"))+                        # Nome do eixo X
+  ylab(expression("Produtividade de trigo (Mg ha"^"-1"~")"))+                    # Nome do eixo Y 
+  scale_x_continuous(n.breaks = 6)+                                              # alterando escala do eixo X 
+  scale_y_continuous(limits = c(0, 12), breaks = seq(0, 12, by = 2))             # alterando escala do eixo Y 
+p1
+```
+
+
+                             #### Gráfico de linhas ####
+```{r}
+data(lambert.soiltemp) # dados do pacote agridat
+
+ggplot(lambert.soiltemp, 
+       aes(month, temp, color = depth))+
+  geom_line() # geometry para gráficos de linha 
+
+# Ver resumo dos dados 
+str(lambert.soiltemp)
+
+#Transformação de numérico para fator 
+lambert.soiltemp$depth <-as.factor(lambert.soiltemp$depth)
+str(lambert.soiltemp) # ver transformação 
+
+# Executando o mesmo código
+ggplot(lambert.soiltemp, aes(month, temp, color = depth))+
+  geom_line()
+
+# Gráfico "final"
+p2<-ggplot(lambert.soiltemp, aes(month, temp, color = depth))+
+  geom_line(size = 1)+
+  theme_bw()+
+  scale_color_aaas(name = "Profundidade (inches)")+  # paleta de cores do ggsci
+  theme(axis.text = element_text(size=13,  color = "black"), 
+        axis.title = element_text(size=13,  color = "black"),
+        panel.grid = element_blank())+
+  scale_x_continuous(limits = c(1, 12), breaks = seq(1, 12, by = 1))+
+  scale_y_continuous(limits = c(-100, 60), breaks = seq(-100, 60, by = 15))+
+  xlab(expression("Meses do ano"))+ 
+  ylab(expression("Temperatura (du Crest)"))
+
+#facet_grid(vars(depth))
+# poderiamos seguir com outras camadas/edições
+p2
+```
+
+
+                        #### Gráfico de barras ####
+```{r}
+# Usaremos o mesmo conjunto de dados do gráfico de pontos 
+
+# Nesse caso,  o gráfico de barras apresentará a média de rendimento nas zonas de alta e baixa fertilidade
+
+# Organizando os dados - média, desvio padrão, erro padrão e intevalo de confi.
+m_d <-
+  dados |>  
+  group_by(zone_pt) |> # Agrupa por zona (alta e baixa)
+  summarise( 
+    n=n(),
+    mean=mean(yield),
+    sd=sd(yield) # desvio padrão 
+  ) |> 
+  mutate( se=sd/sqrt(n))  |>  # erro padrão 
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1)) # intervalo de confiança a 95%
+
+# Gráfico de barras com os dados "organizados"
+p3<-ggplot(m_d, aes(x=zone_pt, y=mean, fill=zone_pt))+ 
+  geom_bar( position='dodge', stat = 'identity', fill = 'darkgray', color = 'black')+
+   geom_errorbar(aes(x= zone_pt, ymin =mean-sd, ymax = mean+sd), width = 0.2)+
+  theme_bw()+
+  theme(legend.position="none",
+        axis.text = element_text(size=13,  color = "black"), 
+        axis.title = element_text(size=13,  color = "black"),
+        panel.grid = element_blank())+
+  scale_y_continuous(limits = c(0, 13), breaks = seq(0, 13, by = 2))+
+  xlab(expression("Zona de fertilidade"))+ 
+  ylab(expression("Produtividade de trigo (Mg ha"^"-1"~")"))
+p3
+```
+
+
+# Composição de gráficos 
+```{r}
+p_c<-grid.arrange(p1, p3, ncol=2, nrow = 1)
+
+# Outro exemplo...
+grid.arrange(p2, arrangeGrob(p1, p3, ncol = 2), nrow = 2)
+```
+
+
+# Salvando os gráficos
+```{r}
+ggsave(filename = "../Gráficos em ggplot2/ponto.png", plot = p1, width = 7, height = 5, dpi = 500)
+```
+
+# Box plot
+```{r}
+dados$nitro <- as.factor(dados$nitro)
+
+ggplot(dados, aes(zone_pt, yield))+
+  stat_boxplot(geom="errorbar", position=position_dodge(width = 0.5), width=0.2)+
+  geom_boxplot(outlier.shape = NA, fill = "lightgray")+
+  theme_bw()+
+  theme(axis.text = element_text(size=13,  color = "black"), 
+        axis.title = element_text(size=13,  color = "black"))+
+  geom_point(aes(color = nitro), position = position_jitter(width = 0.1), size = 3)+
+  scale_color_viridis_d()+
+   xlab(expression("Zona de fertilidade"))+ 
+  ylab(expression("Produtividade de trigo (Mg ha"^"-1"~")"))
+```
+
+# Gráfico de pontos com animação 
+```{r}
+data(riceProdPhil) # dados do pacote frontier 
+
+ggplot(riceProdPhil, aes(NPK, PROD))+
+  geom_point(color = "black", fill = "blue", shape=21, size = 4)+
+  theme_bw()+
+  theme(axis.text = element_text(size=13,  color = "black"), 
+        axis.title = element_text(size=13,  color = "black"))+
+  ylab(expression("Rice (tonnes of freshly threshed rice)"))+
+  xlab(expression("NPK (kg of active ingredients)"))+
+  transition_time(YEARDUM)+
+  labs(title = "Year: {frame_time}")
+```
+
+#Gráfico de linha com animação 
+```{r}
+ ggplot(riceProdPhil, aes(YEARDUM, PRICE))+
+  geom_line(color = "lightblue", size = 1)+
+  geom_point(color = "red", size = 4)+
+  geom_text(aes(label = PRICE), size = 5, vjust = -1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=13,  color = "black"), 
+        axis.title = element_text(size=13,  color = "black"))+
+  ylab(expression("Preço do arroz (pesos/kg)"))+
+  xlab(expression("Anos após início das avaliações"))+
+     scale_y_continuous(limits = c(4, 9.1), breaks = seq(4, 9.1, by = 1))+
+  transition_reveal(YEARDUM)
+
+# Salvar o gif
+anim_save(anim_save("/Users/gustavopesini/Library/CloudStorage/OneDrive-Personal/anim.gif", anim))
+
+```
+
+
+#Usando outras extensões 
+```{r}
+p<-ggbetweenstats(dados, x = nitro, y = yield)
+p
+```
+
+# Adicionar texto e outros parâmetros 
+```{r}
+data(data_test) # dados do pacote soiltestcorr
+
+ggplot(data_test, aes(STV, RY))+
+  geom_point(color = "black", fill = "darkorange", shape = 21, size = 4)+
+  geom_vline(xintercept  = 20, color = "black", size = 0.4, linetype='dashed')+
+  geom_hline(yintercept = 90, color = "black", size = 0.4, linetype='dashed')+
+  geom_label(
+    label="STV", 
+    x=20,
+    y=90, label.size = 1, fill = "white", color = "darkblue", size = 4)+
+  geom_text(family = "Times New Roman", x=45, y=26, label="STV = 20 mg/dm3") # ....
+```
+
+# Pacotes prontos para calcular nível crítico 
+```{r} 
+data(data_test)
+linear_plateau(data = data_test, 
+ ry = RY, stv = STV, resid = TRUE, plot = T)
+```
+
+
+## Tour em algumas plataformas
+
+Livro 'R for data Science 2 ed. - Capítulo 2 - Data visualization. 
+ <https://r4ds.hadley.nz/> 
+
+
+Plataforma 'R Graph Gallery'
+ <https://r-graph-gallery.com/>
+ 
+ 
+Qual o gráfico mais apropriado? 
+ <https://www.data-to-viz.com/#explore>
+
