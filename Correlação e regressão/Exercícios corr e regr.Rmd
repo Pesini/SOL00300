@@ -1,0 +1,44 @@
+---
+title: "Exercícios correlação e regressão"
+author: "Gustavo Pesini"
+date: "2023-11-27"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+SOL 00300
+Tópicos Especiais em Ciência do solo:
+Introdução à linguagem de programação R para estudos em Ciência do Solo
+
+27 de novembro de 2023
+Gustavo Pesini
+
+1) Elabore uma análise de regressão, apresentado-a gráficamente com a equação da regressão, R quadrado e o p valor do modelo. Utilize o conjunto de dados 'exfm19' que está apresentado no script abaixo. Considere VWB como variável independente, CSA como variável dependente e STRATA como um fator dentro do modelo de análise de variância.
+```{r}
+library(forestmangr)
+data(exfm19) 
+?exfm19
+exfm19$STRATA<-as.factor(exfm19$STRATA)
+```
+
+
+
+2) Realize análises de correlação (Pearson) e apresente-a graficamente conforme as instruções a seguir:
+
+a) tilize os dados 'Soilssg', onde todas as variáveis são numéricas. Execute a análise de correlação entre todas as variáveis.
+
+b) Utilize os dados 'Soilcomg'. Neste conjunto, existe a variável categórica 'Countour'. Elabore a análise de correlação para cada grupo dessa variável. 
+
+```{r}
+library(carData)
+data(Soils)
+?Soils
+#dados questão 1a
+Soilssg <- Soils[,-c(1:5)]
+
+#dados questão 1b
+Soilcomg <- Soils |> 
+  dplyr::select(Contour, pH, N, Dens, P, Ca, Mg, K, Na, Conduc)
+```
+

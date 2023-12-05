@@ -1,0 +1,462 @@
+---
+title: "Correlação e regressão"
+author: "Gustavo Pesini"
+date: "2023-11-20"
+output: html_document
+---
+
+# Correlação e regressão 
+Nesta aula, exploraremos os dois tópicos mencionados. No material visual apresentado anteriormente, observamos diversas aplicações de correlação e regressão em estudos voltados para a Ciência do Solo. Embora alguns conjuntos de dados apresentados durante a aula não estejam diretamente relacionados à Ciência do Solo, é notável que a estrutura de códigos discutida possui potencial para ser aplicada de maneira específica em seus futuros estudos.
+
+
+# Pacotes 
+```{r}
+library(tidyverse)          # Pacotes para manipulação e apresentação 
+library(frontier)           # Regressões estocasticas 
+library(quantreg)           # Regressões quantílicas 
+library(ggcorrplot)         # Extensão do ggplot para correlação
+library(GGally)             # Extensão do ggplot para correlação e outros
+library(ggpubr)             # Extensão do ggplot que adiciona equação no gráfico
+library(ggpmisc)            # Extensão do ggplot para regressões 
+library(psych)              # Pacote com mais de 500 funções (corelação ...)
+library(palmerpenguins)     # Pacote para dados que serão utilizados 
+library(plotly)             # Pacote para elaboração de gráficos 
+library(AgroReg)            # Modelos de regressão
+library(soiltestcorr)       # Modelos de regressão com plato
+library(forestmangr)        # Aplica modelos não lineares por grupo 
+library(nlme)               # Modelos lineares e não lineares
+```
+
+
+# Correlação 
+
+## Pressupostos: 
+
+> Pearson: Linearidade e normalidade ...
+> Spearman: Não paramétrica ...
+> Kendall: Não paramétrica - (conjunto amostral < 100) ...
+ 
+### Base de dados
+```{r}
+dados <- rrr::tobacco 
+
+# Organizando os dados 
+
+# Organizando os nomes das variáveis 
+dados <- dados |> 
+  dplyr::rename("Burn_Rate" = "Y1.BurnRate",
+                "Sugar" = "Y2.PercentSugar",
+                "Nicotine" = "Y3.PercentNicotine",
+                "Nitrogen" = "X1.PercentNitrogen",
+                "Chlorine" = "X2.PercentChlorine",
+                "Potassium" = "X3.PercentPotassium",
+                "Phosphorus" = "X4.PercentPhosphorus",
+                "Calcium" = "X5.PercentCalcium",
+                "Magnesium" = "X6.PercentMagnesium")
+```
+
+### Teste de normalidade nas variáveis 
+```{r}
+apply(dados, 2, shapiro.test) # aplica a função shapiro.test nas colunas (2) dados 
+```
+
+### SPLOM, histogramas e correlação (Pressupostos)
+```{r}
+psych::pairs.panels(dados)
+```
+
+## Interpretação de um teste de correlação (Pearson)
+
+r=1 : correlação diretamente proporcional 
+r=0 : ausência de correlação
+r=-1 : Correlação inversamente proporcional 
+
+
+## Correlação entre variáveis selecionadas
+```{r}
+#Correlação entre duas variáveis
+cor.test(dados$Chlorine, dados$Burn_Rate, method = "spearman")
+
+#Correlação com várias variáveis (Matriz)
+cor(dados, method = "pearson")
+```
+
+
+## Apresentação gráfica com o pacote ggcorrplot 
+```{r}
+#Atribuindo a matriz a um objeto
+correl<- cor(dados)
+
+#Gráficos com o pacote ggcorrplot 
+ggcorrplot(correl)
+```
+
+## Algumas alterações gráficas 
+```{r}
+# Gráfico de círculo 
+ggcorrplot(correl, 
+           method = "circle")
+
+# Ordenamento das variáveis por agrupamento hierárquico
+ggcorrplot(correl, 
+           hc.order = TRUE)
+
+# Remover espelhamento
+ggcorrplot(correl, 
+           hc.order = TRUE, 
+           type = "upper")
+
+# Adicionando o valor da correlação 
+ggcorrplot(correl, 
+           hc.order = TRUE, 
+           type = "lower", 
+           lab = TRUE)
+
+# Ajustando fonte
+ggcorrplot(correl, hc.order = TRUE, 
+           type = "lower", 
+           lab = T, 
+           lab_size = 2.5)
+
+cor_pmat(dados)
+
+# Removendo valores não significativos
+ggcorrplot(correl, hc.order = TRUE, 
+           type = "lower", 
+           lab = T, 
+           lab_size = 2.5,
+           colors = c("red", "white", "blue"),
+           p.mat = cor_pmat(dados), 
+           insig = "blank")
+```
+
+## Apresentação gráfica com o pacote GGally (extensão do ggplot2)
+```{r setup, warning=F}
+penguins |> 
+  dplyr::select(species, body_mass_g, ends_with("_mm")) |> 
+  GGally::ggpairs(aes(color = species, alpha = 0.8), progress = F) +
+  scale_colour_manual(values = c("darkorange","purple","cyan4")) +
+  scale_fill_manual(values = c("darkorange","purple","cyan4")) 
+
+
+# body_mass_g = massa corporal (g)
+# bill_length_mm = comprimento do bico (mm)
+# bill_depth_mm = profundidade do bico (mm)
+# flipper_length_mm = comprimento da nadadeira (mm)
+
+# Referência do script 
+# https://bookdown.org/igisc/EnvDataSci/visualization.html#pairs-plot
+# https://analises-ecologicas.com/cap6
+
+# Referencial para o GGally 
+# https://ggobi.github.io/ggally/reference/ggpairs.html
+```
+
+#Regressões 
+
+> Linear (simples e múltipla)
+> Polinomial
+> Linear-plateau
+> Quadratic-plateau
+> Exponencial
+> Quantilica 
+
+
+## Regressão linear simples
+### Pressupostos
+> Linearidade
+> Independência dos erros 
+> Normalidade dos erros 
+> Igualdade da variância (homocedasticidade)
+
+### Dados
+```{r}
+data(riceProdPhil)
+```
+
+### Modelo e análise dos pressupostos 
+```{r}
+mod<-lm(PROD ~ NPK, riceProdPhil) #modelo linear Prod = NPK . X
+summary(mod)
+anova(mod)
+#Análise gráfica 
+plot(mod)
+```
+
+### Outliers?
+```{r}
+#Removendo outliers obtidos na Análise gráfica
+RSO <-riceProdPhil[-c(275, 281, 319), ] 
+
+#Separando os outliers 
+OUT<-riceProdPhil[c(275, 281, 319), ] 
+
+# Outra forma de verificar outliers
+# distância de Cooks
+cooksD <- cooks.distance(mod)
+
+# distância da obs. de 4 vezes a média pode ser ser classificado como influente
+influential <- cooksD[(cooksD > (4 * mean(cooksD, na.rm = TRUE)))] 
+
+#Removendo os outliers - outra forma
+names <- names(influential)
+outliers <- riceProdPhil[names,]
+rice_sem_outliers <- riceProdPhil|> 
+  anti_join(outliers)
+
+# Coletando os outliers 
+rice_outliers <- riceProdPhil|> 
+  semi_join(outliers)
+```
+
+### Modelo "sem outliers"
+```{r}
+mod2<-lm(PROD ~ NPK, RSO)
+summary(mod2)
+anova(mod2)
+plot(mod2)
+```
+
+### Representação gráfica da regressão
+```{r}
+ggplot()+
+  geom_point(data = RSO, aes(x=NPK, y=PROD), color="blue")+
+  geom_smooth(data = RSO, aes(x=NPK, y=PROD), 
+              method = "lm", color="black")+
+
+  stat_regline_equation(data = RSO, aes(x=NPK, y=PROD, label =..eq.label..), 
+                        label.y = 30)+
+
+  stat_regline_equation(data = RSO, aes(x=NPK, y=PROD, label =..rr.label..),
+                        label.y = 27)+ 
+  geom_point(data = OUT, aes(x=NPK, y=PROD), color="red") # adicionando os outlirs 
+```
+
+
+##Regressão linear múltipla 
+
+### Pressupostos da rlm
+ > Normalidade dos resíduos
+ > Homocedasticidade (Breush-Pagan)
+ > Ausência de multicolinearidade entre Xn (r < 0.8 - 0.9)
+ > ...
+ 
+### Modelo e apresentação gráfica
+```{r}
+# Execute novamente o código da linha 39-55, caso tenha removido os dados
+
+# Usaremos os dados de tabaco 
+rlm <- lm(data = dados, Burn_Rate ~ Sugar+
+            Nicotine+
+            Nitrogen+ 
+            Chlorine+ 
+            Potassium+
+            Phosphorus+
+            Calcium+
+            Magnesium)
+
+summary(rlm)
+
+# Seleciona um modelo baseado na fórmula da AIC.
+rlm2 <- step(rlm) 
+summary(rlm2)
+
+
+# Apresentação gráfica
+plot_ly(x= dados$Chlorine, 
+        y= dados$Potassium, 
+        z= dados$Burn_Rate)
+
+# Certifique-se sobre o uso de gráficos 3D. Geralmente são horríveis e difíceis para o leitor interpretar/visualizar. 
+
+# https://www.data-to-viz.com/caveat/3d.html
+# https://www.gabrielaplucinska.com/blog/2017/8/7/3d-graphs
+
+```
+
+## Regressão polinomial quadrática 
+
+### Pressupostos da rpq
+
+> A relação entre a variável dependente e independente é curvilínea.
+> Os erros são independentes, normalmente distribuídos com média zero e variância constante.
+> ...
+
+
+### Conjunto de dados e modelo
+```{r}
+rpq<- agridat::bachmaier.nitrogen 
+
+aov(yield ~ nitro*zone, data = rpq) |> 
+summary()
+
+# Modelo errado, pois não houve interação, mas vamos aplicar o modelo para cada grupo de zone 
+fit <- lmList(yield ~ nitro + I(nitro^2) | zone, data = rpq)
+summary(fit)
+
+# r quadrado para cada grupo
+sapply(fit, function(x) summary(x)$r.squared)
+```
+
+### Modelo e representação gráfica - interação 
+```{r}
+# Modelo
+aov(yield ~ nitro * loc * year , data = agridat::engelstad.nitro) |> 
+  summary()
+
+# Formula poly 2 grau
+formula <- y ~ x + I(x^2)
+ 
+
+# Apresentação gráfica 
+ggplot(agridat::engelstad.nitro, aes(nitro, yield))+
+  geom_point(size = 4, color = "blue")+
+  facet_grid(~loc)+
+  theme_bw()+
+  geom_smooth(method = 'lm', formula = formula, color = 'black')+ 
+  ggpmisc::stat_poly_eq(use_label(c("eq", "adj.R2")), formula = formula, 
+               label.y.npc = 0.1, label.x.npc = 0.2)+
+  ggpmisc::stat_fit_tb(method = "lm",
+              method.args = list(formula = formula),
+              tb.type = "fit.anova",
+              tb.vars = c(Effect = "term", 
+                          "df",
+                          "M.S." = "meansq", 
+                          "italic(F)" = "statistic", 
+                          "italic(P)" = "p.value"),
+              tb.params = c(x = 1, "x^2" = 2),
+              label.y.npc = 0.2, label.x.npc = 0.95,
+              size = 2.5,
+              parse = TRUE)
+  
+```
+
+### Material apresentado na aula de gráficos 
+```{r}
+# Modelo correto? Verefique!
+
+ggplot(agridat::bachmaier.nitrogen, aes(nitro, yield, color = zone))+
+  geom_point(size = 4, color = 'darkgray')+                            
+  geom_smooth(method = 'lm', formula = formula,
+              color = 'black', se = T, level = 0.95)+   
+  facet_grid(~ zone)+                               
+  theme_bw()+                                          
+  theme(axis.text = element_text(size=13,  color = "black"),
+        axis.title = element_text(size=13,  color = "black"),
+        strip.text = element_text(size = 13),
+        legend.position = "none",
+        panel.grid = element_blank())+
+  xlab(expression("Dose de nitrogênio (kg ha"^"-1"~")"))+                     
+  ylab(expression("Produtividade de trigo (Mg ha"^"-1"~")"))+                    
+  scale_x_continuous(n.breaks = 6)+                                             
+  scale_y_continuous(limits = c(0, 12), breaks = seq(0, 12, by = 2))+
+  
+  
+    stat_poly_eq(use_label(c("eq", "adj.R2")), formula = formula, 
+               label.y.npc = 0.1, label.x.npc = 0.2, color = "black")+
+    stat_fit_tb(method = "lm",
+              method.args = list(formula = formula),
+              tb.type = "fit.anova",
+              tb.vars = c(Effect = "term", 
+                          "df",
+                          "M.S." = "meansq", 
+                          "italic(F)" = "statistic", 
+                          "italic(P)" = "p.value"),
+              tb.params = c(x = 1, "x^2" = 2),
+              label.y.npc = 0.2, label.x.npc = 0.95,
+              parse = TRUE)
+
+ # Material 
+# https://cran.r-project.org/web/packages/ggpmisc/vignettes/model-based-annotations.html
+```
+
+## Modelos de regressão não linear
+```{r}
+#Dados 
+dadosn<-readxl::read_xlsx("/Users/gustavopesini/Library/CloudStorage/OneDrive-Personal/Aulas R - PPG/Dados/N_remanescente.xlsx")
+
+# Modelo 
+NG <- nls(NR ~ a * exp(-b * DAD) + (100-a), 
+          start = list(a = 100, b = 0.02), 
+          data = dadosn)
+
+# Visualização do modelo 
+summary(NG)
+
+# Gerando um modelo para cada categoria dentro do grupo Cultura 
+table<- nls_table(dadosn, NR ~ a * exp(-b * DAD) + (100-a), 
+          mod_start = c(a = 100, b = 0.02), 
+           .groups = "Cultura")
+```
+
+
+## Função Plateau
+```{r}
+# dados
+dados<-soiltestcorr::data_test
+
+ggplot(dados, aes(STV, RY))+
+  geom_point()
+
+# Pacote AgroReg - faz o plato-linear e a linear-plato
+
+# Linear - Plateau (AgroReg)
+linear.plateau(dados$STV, dados$RY, sample.curve = 1000)
+
+# Quadratic - Plateau (AgroReg)
+quadratic.plateau(dados$STV, dados$RY, sample.curve = 1000)
+
+
+# Plateau (soiltestcorr)
+# linear
+# quadratico
+# mitscherlich
+# Arcsine-Log
+# Cate and Nelson (1965)
+
+#linear
+linear_plateau(stv = STV, ry = RY, data = dados, plot = F)
+
+#quadratica
+quadratic_plateau(stv = STV, ry = RY, data = dados, plot = T) 
+
+# mitscherlich
+mitscherlich(stv = STV, ry = RY, data = dados, plot = T) 
+
+# Arcsine-Log
+mod_alcc(stv = STV, ry = RY, data = dados, plot = T, target = 80) 
+
+# Cate and Nelson (1965)
+cate_nelson_1971(stv = STV, ry = RY, data = dados, plot = T) 
+
+# Material
+# Pacote AgroReg
+# https://cran.r-project.org/web/packages/AgroReg/index.html 
+
+# Pacote soiltestcorr
+# https://adriancorrendo.github.io/soiltestcorr/index.html 
+```
+
+## Regressão quantílica 
+```{r}
+data(riceProdPhil)
+
+# Visualização dos dados
+ggplot(riceProdPhil, aes(NPK, PROD))+
+  geom_point()
+
+# Regressão quantílica pelo ggpmisc
+ggplot(riceProdPhil, aes(NPK, PROD))+
+  geom_point()+
+  stat_quant_line(aes(color = after_stat(quantile.f)), 
+                  quantiles = c(0.05, 0.5, 0.95)) +
+  stat_quant_eq(aes(color = after_stat(quantile.f)),
+                quantiles = c(0.05, 0.5, 0.95)) +
+  labs(color = "Quantiles")
+
+# Prova real - Pacote frontier 
+q05<-with(riceProdPhil,
+            rq(PROD~NPK, tau = 0.05))
+summary(q05)
+```
+
