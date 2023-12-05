@@ -1,0 +1,148 @@
+---
+title: "PCA"
+author: "Gustavo Pesini"
+date: "2023-11-29"
+output: html_document
+---
+
+# Pacotes
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(ggplotify)
+library(FactoMineR)
+library(factoextra)
+library(candisc)
+```
+
+# PCA
+ > Análise de componentes principais (PCA) 
+ - Um método estatístico para reduzir a dimensionalidade
+ - Atente-se aos pressupostos! Os valores devem possuir o mesmo peso?
+ - Forma de ajuste: (valor-média) / desvio padrão 
+ - Questionamento: Os pacotes modernos assumem isso?  
+
+```{r}
+# Explorando conjunto de dados - já explorados em momentos anteriores 
+ver <- carData::Soils
+
+Soilcomg <- carData::Soils |> 
+  dplyr::select(pH, N, Dens, P, Ca, Mg, K, Na, Conduc)
+
+# PCA para dados de solo  
+res.pca <- FactoMineR::PCA(Soilcomg, graph = F, scale.unit = T)
+
+# Extrai os resultados 
+get_pca_var(res.pca)
+
+# visualizar os autovalores/variâncias das dimensões
+fviz_eig(res.pca)
+
+# Elaboração gráfica 
+fviz_pca_var(res.pca, 
+             col.var = "cos2", # qualidade da representação
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE # Sem sobreposição de texto
+             )
+
+# Extraindo um fator dos dados originais 
+groups <- as.factor(carData::Soils$Contour)
+camada <- as.factor(carData::Soils$Depth)
+
+# Adicionando um grupamento
+fviz_pca_ind(res.pca,
+             geom.ind = "point",
+             col.ind = groups, # color by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07" ),
+             addEllipses = TRUE, # Concentration ellipses
+             ellipse.type = "confidence",
+             col.var = "contrib",
+             legend.title = "Groups",
+             repel = TRUE
+             )
+
+# Adicionando outro grupamento
+fviz_pca_biplot(res.pca,
+                geom.ind = "point",
+                fill.ind = ver$Depth, col.ind = "black",
+                pointshape = 21, pointsize = 2,
+                palette = "jco",
+                addEllipses = TRUE,
+                col.var = "contrib",
+                gradient.cols = "RdYlBu",
+                legend.title = list(fill = "Camada", color = "Contrib",
+                                    alpha = "Contrib")
+                )
+
+# Outro exemplo
+# Adicionando a PCA para os dados iris (somente numéricos) 
+iris.pca <- PCA(iris[,-5], graph = FALSE)
+
+fviz_pca_ind(iris.pca,
+             geom.ind = "point", # mostrar apenas pontos
+             col.ind = iris$Species, # Colorir por grupo
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, # Elipse de concentração 
+             legend.title = "Groups"
+             )
+
+# Representação gráfica 
+fviz_pca_biplot(iris.pca,
+                geom.ind = "point",
+                fill.ind = iris$Species, col.ind = "black",
+                pointshape = 21, pointsize = 2,
+                palette = "jco",
+                addEllipses = TRUE,
+                col.var = "contrib",
+                gradient.cols = "RdYlBu",
+                legend.title = list(fill = "Species", color = "Contrib",
+                                    alpha = "Contrib")
+                )
+
+# Material de apoio 
+# http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/112-pca-principal-component-analysis-essentials/#pca-data-format
+
+# Livro - Principal Component Analysis - Jolliffe (2002)
+# https://link.springer.com/book/10.1007/b98835
+```
+
+# Análise discriminante
+
+>  Análise discriminante 
+ - identifica variáveis que discriminam os grupos
+ - 
+```{r setup, warning=F}
+# Modelo Linear 
+data.mod <- lm(cbind(pH, N, Dens, P, Ca, Mg, K, Na, Conduc) ~ Depth, data = ver)
+
+# Anova 
+data.anova.out <- car::Anova(data.mod)
+
+# Canonical discriminant analysis
+data.can <- candisc::candisc(data.mod)
+ls(data.can)
+cancoefs <- data.can$coeffs.raw
+summary(data.can)
+
+# Gráfico
+plot(data.can, points = TRUE, add = TRUE, 
+     col = palette(brewer.pal(n = 3, name = "Paired")), 
+     ellipse = TRUE, ellipse.args = list(),var.col="black",  
+     xlim=c(-5,9),ylim=c(-4,4),
+     abline = FALSE, col.lines = palette()[3], lwd = 3)
+
+# Gráfico - modelo ggplot
+pl1<-as.ggplot(~plot(data.can, points = TRUE, add = TRUE, 
+                     col = palette(brewer.pal(n = 4, name = "Paired")), 
+                     ellipse = TRUE, ellipse.args = list(),var.col="darkgray",
+                     xlim=c(-10,10),ylim=c(-5,5),
+                     abline = FALSE, col.lines = palette()[4], lwd = 2))
+pl1
+
+# Material de apoio 
+# https://www.tandfonline.com/doi/abs/10.1198/106186007X208407
+
+# Aplicação prática 
+# https://www.sciencedirect.com/science/article/pii/S0378429021001970?via%3Dihub 
+```
+
